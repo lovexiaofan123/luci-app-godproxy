@@ -1,36 +1,63 @@
-# This is a basic workflow to help you get started with Actions
+include $(TOPDIR)/rules.mk
 
-name: CI
+PKG_NAME:=luci-app-godproxy
+PKG_VERSION:=3.8.5
+PKG_RELEASE:=3-20210421
 
-# Controls when the workflow will run
-on:
-  # Triggers the workflow on push or pull request events but only for the main branch
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+include $(INCLUDE_DIR)/package.mk
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+define Package/luci-app-godproxy
+	SECTION:=luci
+	CATEGORY:=LuCI
+	SUBMENU:=3. Applications
+	TITLE:=LuCI support for koolproxy
+	DEPENDS:=+openssl-util +ipset +dnsmasq-full +@BUSYBOX_CONFIG_DIFF +iptables-mod-nat-extra +wget
+	MAINTAINER:=panda-mute <wxuzju@gmail.com>
+endef
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
-jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+define Build/Compile
+endef
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+define Package/luci-app-godproxy/conffiles
+	/etc/config/koolproxy
+	/usr/share/koolproxy/data/rules/
+endef
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+define Package/luci-app-godproxy/install
+	$(INSTALL_DIR) $(1)/usr/lib/lua/luci
+	cp -pR ./luasrc/* $(1)/usr/lib/lua/luci
+	$(INSTALL_DIR) $(1)/
+	cp -pR ./root/* $(1)/
+	$(INSTALL_DIR) $(1)/usr/lib/lua/luci/i18n
+	po2lmo ./po/zh-cn/koolproxy.po $(1)/usr/lib/lua/luci/i18n/koolproxy.zh-cn.lmo
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+ifeq ($(ARCH),mipsel)
+	$(INSTALL_BIN) ./bin/mipsel $(1)/usr/share/koolproxy/koolproxy
+endif
+ifeq ($(ARCH),mips)
+	$(INSTALL_BIN) ./bin/mips $(1)/usr/share/koolproxy/koolproxy
+endif
+ifeq ($(ARCH),x86)
+	$(INSTALL_BIN) ./bin/x86 $(1)/usr/share/koolproxy/koolproxy
+endif
+ifeq ($(ARCH),x86_64)
+	$(INSTALL_BIN) ./bin/x86_64 $(1)/usr/share/koolproxy/koolproxy
+endif
+ifeq ($(ARCH),arm)
+	$(INSTALL_BIN) ./bin/arm $(1)/usr/share/koolproxy/koolproxy
+endif
+ifeq ($(ARCH),aarch64)
+	$(INSTALL_BIN) ./bin/aarch64 $(1)/usr/share/koolproxy/koolproxy
+endif
+endef
+
+define Package/luci-app-godproxy/postinst
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	( . /etc/uci-defaults/luci-koolproxy ) && rm -f /etc/uci-defaults/luci-koolproxy
+	rm -f /tmp/luci-indexcache
+fi
+exit 0
+endef
+
+$(eval $(call BuildPackage,luci-app-godproxy))
